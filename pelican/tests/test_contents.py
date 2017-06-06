@@ -340,6 +340,8 @@ class TestPage(LoggedTestCase):
         args['context']['filenames'] = {
             'images/poster.jpg': type(
                 cls_name, (object,), {'url': 'images/poster.jpg'}),
+            'images/bg.jpg': type(
+                cls_name, (object,), {'url': 'images/bg.jpg'}),
             'assets/video.mp4': type(
                 cls_name, (object,), {'url': 'assets/video.mp4'}),
             'images/graph.svg': type(
@@ -393,6 +395,34 @@ class TestPage(LoggedTestCase):
             '<blockquote cite="http://notmyidea.org/reference.html">'
             'blah blah'
             '</blockquote>'
+        )
+
+        # div.style, background-image
+        args['content'] = (
+            '<div style="background-image: url(\'{filename}/images/bg.jpg\')">'
+            'This is a div with background'
+            '</div>'
+        )
+        content = Page(**args).get_content('http://notmyidea.org')
+        self.assertEqual(
+            content,
+            '<div style="background-image: url(\'http://notmyidea.org/images/bg.jpg\')">'
+            'This is a div with background'
+            '</div>'
+        )
+
+        # div.style, background, different quoting
+        args['content'] = (
+            '<div style=\'background: url("|filename|/images/bg.jpg")\'>'
+            'This is another div with background'
+            '</div>'
+        )
+        content = Page(**args).get_content('http://notmyidea.org')
+        self.assertEqual(
+            content,
+            '<div style=\'background: url("http://notmyidea.org/images/bg.jpg")\'>'
+            'This is another div with background'
+            '</div>'
         )
 
     def test_intrasite_link_markdown_spaces(self):
