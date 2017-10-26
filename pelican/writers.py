@@ -140,11 +140,12 @@ class Writer(object):
                 complete_path, context=context, feed=feed)
         return feed
 
-    def write_file(self, name, template, context, relative_urls=False,
+    def write_file(self, name, url, template, context, relative_urls=False,
                    paginated=None, override_output=False, **kwargs):
         """Render the template and write the file.
 
         :param name: name of the file to output
+        :param url: url of the file (needed by the paginator)
         :param template: template to use to generate the content
         :param context: dict to pass to the templates.
         :param relative_urls: use relative urls or absolutes ones
@@ -202,7 +203,7 @@ class Writer(object):
         if paginated:
 
             # pagination needed, init paginators
-            paginators = {key: Paginator(name, val, self.settings)
+            paginators = {key: Paginator(name, url, val, self.settings)
                           for key, val in paginated.items()}
 
             # generated pages, and write
