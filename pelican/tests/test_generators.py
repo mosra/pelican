@@ -155,6 +155,7 @@ class TestArticlesGenerator(unittest.TestCase):
         writer = MagicMock()
         generator.generate_feeds(writer)
         writer.write_feed.assert_called_with([], settings,
+                                             'feeds/all.atom.xml',
                                              'feeds/all.atom.xml')
 
         generator = ArticlesGenerator(
@@ -163,6 +164,20 @@ class TestArticlesGenerator(unittest.TestCase):
         writer = MagicMock()
         generator.generate_feeds(writer)
         self.assertFalse(writer.write_feed.called)
+
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
+    def test_generate_feeds_override_url(self):
+        settings = get_settings()
+        settings['CACHE_PATH'] = self.temp_cache
+        settings['FEED_ALL_ATOM_URL'] = 'feeds/atom/all/'
+        generator = ArticlesGenerator(
+            context=settings, settings=settings,
+            path=None, theme=settings['THEME'], output_path=None)
+        writer = MagicMock()
+        generator.generate_feeds(writer)
+        writer.write_feed.assert_called_with([], settings,
+                                             'feeds/all.atom.xml',
+                                             'feeds/atom/all/')
 
     def test_generate_context(self):
         articles_expected = [
@@ -255,7 +270,7 @@ class TestArticlesGenerator(unittest.TestCase):
         self.assertEqual(sorted(categories), sorted(categories_expected))
 
     @unittest.skipUnless(MagicMock, 'Needs Mock module')
-    def test_direct_templates_save_as_default(self):
+    def test_direct_templates_save_as_url_default(self):
 
         settings = get_settings(filenames={})
         settings['CACHE_PATH'] = self.temp_cache
@@ -264,23 +279,24 @@ class TestArticlesGenerator(unittest.TestCase):
             path=None, theme=settings['THEME'], output_path=None)
         write = MagicMock()
         generator.generate_direct_templates(write)
-        write.assert_called_with("archives.html",
+        write.assert_called_with("archives.html", "archives.html",
                                  generator.get_template("archives"), settings,
                                  blog=True, paginated={}, page_name='archives')
 
     @unittest.skipUnless(MagicMock, 'Needs Mock module')
-    def test_direct_templates_save_as_modified(self):
+    def test_direct_templates_save_as_url_modified(self):
 
         settings = get_settings()
         settings['DIRECT_TEMPLATES'] = ['archives']
         settings['ARCHIVES_SAVE_AS'] = 'archives/index.html'
+        settings['ARCHIVES_URL'] = 'archives/'
         settings['CACHE_PATH'] = self.temp_cache
         generator = ArticlesGenerator(
             context=settings, settings=settings,
             path=None, theme=settings['THEME'], output_path=None)
         write = MagicMock()
         generator.generate_direct_templates(write)
-        write.assert_called_with("archives/index.html",
+        write.assert_called_with("archives/index.html", "archives/",
                                  generator.get_template("archives"), settings,
                                  blog=True, paginated={},
                                  page_name='archives/index')
@@ -321,6 +337,7 @@ class TestArticlesGenerator(unittest.TestCase):
         settings = get_settings(filenames={})
 
         settings['YEAR_ARCHIVE_SAVE_AS'] = 'posts/{date:%Y}/index.html'
+        settings['YEAR_ARCHIVE_URL'] = 'posts/{date:%Y}/'
         settings['CACHE_PATH'] = self.temp_cache
         generator = ArticlesGenerator(
             context=settings, settings=settings,
@@ -332,7 +349,7 @@ class TestArticlesGenerator(unittest.TestCase):
         self.assertEqual(len(dates), 1)
         # among other things it must have at least been called with this
         settings["period"] = (1970,)
-        write.assert_called_with("posts/1970/index.html",
+        write.assert_called_with("posts/1970/index.html", "posts/1970/",
                                  generator.get_template("period_archives"),
                                  settings,
                                  blog=True, dates=dates)
@@ -340,6 +357,8 @@ class TestArticlesGenerator(unittest.TestCase):
         del settings["period"]
         settings['MONTH_ARCHIVE_SAVE_AS'] = \
             'posts/{date:%Y}/{date:%b}/index.html'
+        settings['MONTH_ARCHIVE_URL'] = \
+            'posts/{date:%Y}/{date:%b}/'
         generator = ArticlesGenerator(
             context=settings, settings=settings,
             path=CONTENT_DIR, theme=settings['THEME'], output_path=None)
@@ -352,6 +371,7 @@ class TestArticlesGenerator(unittest.TestCase):
         settings["period"] = (1970, "January")
         # among other things it must have at least been called with this
         write.assert_called_with("posts/1970/Jan/index.html",
+                                 "posts/1970/Jan/",
                                  generator.get_template("period_archives"),
                                  settings,
                                  blog=True, dates=dates)
@@ -359,6 +379,8 @@ class TestArticlesGenerator(unittest.TestCase):
         del settings["period"]
         settings['DAY_ARCHIVE_SAVE_AS'] = \
             'posts/{date:%Y}/{date:%b}/{date:%d}/index.html'
+        settings['DAY_ARCHIVE_URL'] = \
+            'posts/{date:%Y}/{date:%b}/{date:%d}/'
         generator = ArticlesGenerator(
             context=settings, settings=settings,
             path=CONTENT_DIR, theme=settings['THEME'], output_path=None)
@@ -375,6 +397,7 @@ class TestArticlesGenerator(unittest.TestCase):
         settings["period"] = (1970, "January", 1)
         # among other things it must have at least been called with this
         write.assert_called_with("posts/1970/Jan/01/index.html",
+                                 "posts/1970/Jan/01/",
                                  generator.get_template("period_archives"),
                                  settings,
                                  blog=True, dates=dates)

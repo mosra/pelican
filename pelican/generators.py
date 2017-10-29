@@ -254,7 +254,7 @@ class TemplatePagesGenerator(Generator):
             try:
                 template = self.env.get_template(source)
                 rurls = self.settings['RELATIVE_URLS']
-                writer.write_file(dest, template, self.context, rurls,
+                writer.write_file(dest, '', template, self.context, rurls,
                                   override_output=True)
             finally:
                 del self.env.loader.loaders[0]
@@ -282,11 +282,16 @@ class ArticlesGenerator(CachingGenerator):
 
         if self.settings.get('FEED_ATOM'):
             writer.write_feed(self.articles, self.context,
-                              self.settings['FEED_ATOM'])
+                              self.settings['FEED_ATOM'],
+                              self.settings.get('FEED_ATOM_URL',
+                                                self.settings['FEED_ATOM']))
 
         if self.settings.get('FEED_RSS'):
             writer.write_feed(self.articles, self.context,
-                              self.settings['FEED_RSS'], feed_type='rss')
+                              self.settings['FEED_RSS'],
+                              self.settings.get('FEED_RSS_URL',
+                                                self.settings['FEED_RSS']),
+                              feed_type='rss')
 
         if (self.settings.get('FEED_ALL_ATOM') or
                 self.settings.get('FEED_ALL_RSS')):
@@ -297,11 +302,17 @@ class ArticlesGenerator(CachingGenerator):
 
             if self.settings.get('FEED_ALL_ATOM'):
                 writer.write_feed(all_articles, self.context,
-                                  self.settings['FEED_ALL_ATOM'])
+                                  self.settings['FEED_ALL_ATOM'],
+                                  self.settings.get(
+                                      'FEED_ALL_ATOM_URL',
+                                      self.settings['FEED_ALL_ATOM']))
 
             if self.settings.get('FEED_ALL_RSS'):
                 writer.write_feed(all_articles, self.context,
                                   self.settings['FEED_ALL_RSS'],
+                                  self.settings.get(
+                                      'FEED_ALL_RSS_URL',
+                                      self.settings['FEED_ALL_RSS']),
                                   feed_type='rss')
 
         for cat, arts in self.categories:
@@ -309,11 +320,19 @@ class ArticlesGenerator(CachingGenerator):
             if self.settings.get('CATEGORY_FEED_ATOM'):
                 writer.write_feed(arts, self.context,
                                   self.settings['CATEGORY_FEED_ATOM']
+                                  % cat.slug,
+                                  self.settings.get(
+                                      'CATEGORY_FEED_ATOM_URL',
+                                      self.settings['CATEGORY_FEED_ATOM'])
                                   % cat.slug, feed_title=cat.name)
 
             if self.settings.get('CATEGORY_FEED_RSS'):
                 writer.write_feed(arts, self.context,
                                   self.settings['CATEGORY_FEED_RSS']
+                                  % cat.slug,
+                                  self.settings.get(
+                                      'CATEGORY_FEED_RSS_URL',
+                                      self.settings['CATEGORY_FEED_RSS'])
                                   % cat.slug, feed_title=cat.name,
                                   feed_type='rss')
 
@@ -322,11 +341,19 @@ class ArticlesGenerator(CachingGenerator):
             if self.settings.get('AUTHOR_FEED_ATOM'):
                 writer.write_feed(arts, self.context,
                                   self.settings['AUTHOR_FEED_ATOM']
+                                  % auth.slug,
+                                  self.settings.get(
+                                      'AUTHOR_FEED_ATOM_URL',
+                                      self.settings['AUTHOR_FEED_ATOM'])
                                   % auth.slug, feed_title=auth.name)
 
             if self.settings.get('AUTHOR_FEED_RSS'):
                 writer.write_feed(arts, self.context,
                                   self.settings['AUTHOR_FEED_RSS']
+                                  % auth.slug,
+                                  self.settings.get(
+                                      'AUTHOR_FEED_RSS_URL',
+                                      self.settings['AUTHOR_FEED_RSS'])
                                   % auth.slug, feed_title=auth.name,
                                   feed_type='rss')
 
@@ -337,12 +364,20 @@ class ArticlesGenerator(CachingGenerator):
                 if self.settings.get('TAG_FEED_ATOM'):
                     writer.write_feed(arts, self.context,
                                       self.settings['TAG_FEED_ATOM']
+                                      % tag.slug,
+                                      self.settings.get(
+                                          'TAG_FEED_ATOM_URL',
+                                          self.settings['TAG_FEED_ATOM'])
                                       % tag.slug, feed_title=tag.name)
 
                 if self.settings.get('TAG_FEED_RSS'):
                     writer.write_feed(arts, self.context,
                                       self.settings['TAG_FEED_RSS'] % tag.slug,
-                                      feed_title=tag.name, feed_type='rss')
+                                      self.settings.get(
+                                          'TAG_FEED_RSS_URL',
+                                          self.settings['TAG_FEED_RSS'])
+                                      % tag.slug, feed_title=tag.name,
+                                      feed_type='rss')
 
         if (self.settings.get('TRANSLATION_FEED_ATOM') or
                 self.settings.get('TRANSLATION_FEED_RSS')):
@@ -355,19 +390,26 @@ class ArticlesGenerator(CachingGenerator):
                 if self.settings.get('TRANSLATION_FEED_ATOM'):
                     writer.write_feed(
                         items, self.context,
-                        self.settings['TRANSLATION_FEED_ATOM'] % lang)
+                        self.settings['TRANSLATION_FEED_ATOM'] % lang,
+                        self.settings.get(
+                            'TRANSLATION_FEED_ATOM_URL',
+                            self.settings['TRANSLATION_FEED_ATOM']) % lang)
                 if self.settings.get('TRANSLATION_FEED_RSS'):
                     writer.write_feed(
                         items, self.context,
                         self.settings['TRANSLATION_FEED_RSS'] % lang,
+                        self.settings.get(
+                            'TRANSLATION_FEED_RSS_URL',
+                            self.settings['TRANSLATION_FEED_RSS']) % lang,
                         feed_type='rss')
 
     def generate_articles(self, write):
         """Generate the articles."""
         for article in chain(self.translations, self.articles):
             signals.article_generator_write_article.send(self, content=article)
-            write(article.save_as, self.get_template(article.template),
-                  self.context, article=article, category=article.category,
+            write(article.save_as, article.url,
+                  self.get_template(article.template), self.context,
+                  article=article, category=article.category,
                   override_output=hasattr(article, 'override_save_as'),
                   blog=True)
 
@@ -384,13 +426,19 @@ class ArticlesGenerator(CachingGenerator):
             'day': self.settings['DAY_ARCHIVE_SAVE_AS'],
         }
 
+        period_url = {
+            'year': self.settings['YEAR_ARCHIVE_URL'],
+            'month': self.settings['MONTH_ARCHIVE_URL'],
+            'day': self.settings['DAY_ARCHIVE_URL'],
+        }
+
         period_date_key = {
             'year': attrgetter('date.year'),
             'month': attrgetter('date.year', 'date.month'),
             'day': attrgetter('date.year', 'date.month', 'date.day')
         }
 
-        def _generate_period_archives(dates, key, save_as_fmt):
+        def _generate_period_archives(dates, key, save_as_fmt, url_fmt):
             """Generate period archives from `dates`, grouped by
             `key` and written to `save_as`.
             """
@@ -402,6 +450,7 @@ class ArticlesGenerator(CachingGenerator):
                 # period archive dates
                 date = archive[0].date
                 save_as = save_as_fmt.format(date=date)
+                url = url_fmt.format(date=date)
                 context = self.context.copy()
 
                 if key == period_date_key['year']:
@@ -418,14 +467,15 @@ class ArticlesGenerator(CachingGenerator):
                                              month_name,
                                              _period[2])
 
-                write(save_as, template, context,
+                write(save_as, url, template, context,
                       dates=archive, blog=True)
 
         for period in 'year', 'month', 'day':
             save_as = period_save_as[period]
+            url = period_url[period]
             if save_as:
                 key = period_date_key[period]
-                _generate_period_archives(self.dates, key, save_as)
+                _generate_period_archives(self.dates, key, save_as, url)
 
     def generate_direct_templates(self, write):
         """Generate direct templates pages"""
@@ -436,10 +486,12 @@ class ArticlesGenerator(CachingGenerator):
                 paginated = {'articles': self.articles, 'dates': self.dates}
             save_as = self.settings.get("%s_SAVE_AS" % template.upper(),
                                         '%s.html' % template)
+            url = self.settings.get("%s_URL" % template.upper(),
+                                    '%s.html' % template)
             if not save_as:
                 continue
 
-            write(save_as, self.get_template(template),
+            write(save_as, url, self.get_template(template),
                   self.context, blog=True, paginated=paginated,
                   page_name=os.path.splitext(save_as)[0])
 
@@ -449,7 +501,7 @@ class ArticlesGenerator(CachingGenerator):
         for tag, articles in self.tags.items():
             articles.sort(key=attrgetter('date'), reverse=True)
             dates = [article for article in self.dates if article in articles]
-            write(tag.save_as, tag_template, self.context, tag=tag,
+            write(tag.save_as, tag.url, tag_template, self.context, tag=tag,
                   articles=articles, dates=dates,
                   paginated={'articles': articles, 'dates': dates}, blog=True,
                   page_name=tag.page_name, all_articles=self.articles)
@@ -460,7 +512,7 @@ class ArticlesGenerator(CachingGenerator):
         for cat, articles in self.categories:
             articles.sort(key=attrgetter('date'), reverse=True)
             dates = [article for article in self.dates if article in articles]
-            write(cat.save_as, category_template, self.context,
+            write(cat.save_as, cat.url, category_template, self.context,
                   category=cat, articles=articles, dates=dates,
                   paginated={'articles': articles, 'dates': dates}, blog=True,
                   page_name=cat.page_name, all_articles=self.articles)
@@ -471,7 +523,7 @@ class ArticlesGenerator(CachingGenerator):
         for aut, articles in self.authors:
             articles.sort(key=attrgetter('date'), reverse=True)
             dates = [article for article in self.dates if article in articles]
-            write(aut.save_as, author_template, self.context,
+            write(aut.save_as, aut.url, author_template, self.context,
                   author=aut, articles=articles, dates=dates,
                   paginated={'articles': articles, 'dates': dates}, blog=True,
                   page_name=aut.page_name, all_articles=self.articles)
@@ -479,7 +531,7 @@ class ArticlesGenerator(CachingGenerator):
     def generate_drafts(self, write):
         """Generate drafts pages."""
         for draft in chain(self.drafts_translations, self.drafts):
-            write(draft.save_as, self.get_template(draft.template),
+            write(draft.save_as, draft.url, self.get_template(draft.template),
                   self.context, article=draft, category=draft.category,
                   override_output=hasattr(draft, 'override_save_as'),
                   blog=True, all_articles=self.articles)
@@ -643,7 +695,7 @@ class PagesGenerator(CachingGenerator):
         for page in chain(self.translations, self.pages,
                           self.hidden_translations, self.hidden_pages):
             writer.write_file(
-                page.save_as, self.get_template(page.template),
+                page.save_as, page.url, self.get_template(page.template),
                 self.context, page=page,
                 relative_urls=self.settings['RELATIVE_URLS'],
                 override_output=hasattr(page, 'override_save_as'))
