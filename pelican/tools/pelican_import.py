@@ -9,7 +9,6 @@ import re
 import subprocess
 import sys
 import time
-
 from codecs import open
 
 from six.moves.urllib.error import URLError
@@ -790,7 +789,7 @@ def main():
         '--feed', action='store_true', dest='feed',
         help='Feed to parse')
     parser.add_argument(
-        '-o', '--output', dest='output', default='output',
+        '-o', '--output', dest='output', default='content',
         help='Output path')
     parser.add_argument(
         '-m', '--markup', dest='markup', default='rst',
